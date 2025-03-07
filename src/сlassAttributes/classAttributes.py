@@ -8,12 +8,9 @@ class ClassMeta(type):
 
 
 class DateClass(metaclass=ClassMeta):
-
     @classmethod
     def get_created_at(cls):
         return cls.created_at
 
 
 print(DateClass.get_created_at())
-
-

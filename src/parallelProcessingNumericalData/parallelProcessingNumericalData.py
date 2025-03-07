@@ -1,14 +1,16 @@
-from random import randint
-from math import factorial
-from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
-from multiprocessing import cpu_count, Pool, Queue, Process
-from time import time
-import matplotlib.pyplot as plt
-import matplotlib
 import json
+from concurrent.futures import ThreadPoolExecutor
+from math import factorial
+from multiprocessing import Pool, Process, Queue, cpu_count
+from random import randint
+from threading import Thread
+from time import time
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 matplotlib.use("TkAgg")
+
 
 def timer(func):
     def inner(*args, **kwargs):
@@ -27,6 +29,7 @@ def generate_data(n: int) -> list[int]:
 def process_number(number):
     return factorial(number)
 
+
 @timer
 def mono_thread(data):
     return list(map(process_number, data))
@@ -41,7 +44,7 @@ def thread_pool(data):
 @timer
 def process_pool(data):
     with Pool(cpu_count()) as pool:
-       return list(pool.map(process_number, data))
+        return list(pool.map(process_number, data))
 
 
 def worker_queue(in_queue, out_queue):
@@ -53,7 +56,6 @@ def worker_queue(in_queue, out_queue):
 
 
 def out_consumer(out_queue, len_data, result):
-
     for _ in range(len_data):
         result.append(out_queue.get())
 
@@ -72,7 +74,10 @@ def process_queue(data):
     for _ in range(cpu_count()):
         in_queue.put(None)
 
-    processes = [Process(target=worker_queue, args=(in_queue, out_queue)) for _ in range(cpu_count())]
+    processes = [
+        Process(target=worker_queue, args=(in_queue, out_queue))
+        for _ in range(cpu_count())
+    ]
     consumer = Thread(target=out_consumer, args=(out_queue, len(data), result))
 
     for p in processes:
@@ -92,13 +97,13 @@ def main():
     data = generate_data(100000)
 
     result = {
-            "mono_thread": mono_thread(data),
-            "thread_pool":   thread_pool(data),
-            "process_pool": process_pool(data),
-            "process_queue": process_queue(data)
-        }
+        "mono_thread": mono_thread(data),
+        "thread_pool": thread_pool(data),
+        "process_pool": process_pool(data),
+        "process_queue": process_queue(data),
+    }
 
-    with open("result.json", "w") as  file:
+    with open("result.json", "w") as file:
         json.dump(result, file, indent=4)
 
     plt.bar([x for x in result.keys()], [y for y in result.values()])
@@ -107,5 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

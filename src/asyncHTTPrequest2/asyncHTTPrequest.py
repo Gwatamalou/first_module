@@ -1,14 +1,17 @@
-import json
-import aiohttp
 import asyncio
+import json
+
 import aiofiles
+import aiohttp
 
 
-async def fetch_url(url: str,
-                    session: aiohttp.ClientSession,
-                    out_file, lock: asyncio.Lock,
-                    semaphore: asyncio.Semaphore
-                    ):
+async def fetch_url(
+    url: str,
+    session: aiohttp.ClientSession,
+    out_file,
+    lock: asyncio.Lock,
+    semaphore: asyncio.Semaphore,
+):
     async with semaphore:
         result = {"url": url}
         try:
@@ -36,16 +39,15 @@ async def fetch_url(url: str,
             await out_file.write(json.dumps(result) + "\n")
 
 
-async def fetch_urls(urls_file: str,
-                     result_file: str = "result.jsonl"
-                     ):
+async def fetch_urls(urls_file: str, result_file: str = "result.jsonl"):
     semaphore = asyncio.Semaphore(5)
     lock = asyncio.Lock()
 
-    async with aiohttp.ClientSession() as session, \
-            aiofiles.open(result_file, "a") as out_file, \
-            aiofiles.open(urls_file, "r") as in_file:
-
+    async with (
+        aiohttp.ClientSession() as session,
+        aiofiles.open(result_file, "a") as out_file,
+        aiofiles.open(urls_file, "r") as in_file,
+    ):
         tasks = []
         async for line in in_file:
             url = line.strip()

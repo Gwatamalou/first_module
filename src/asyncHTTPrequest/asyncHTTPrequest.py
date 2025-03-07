@@ -1,16 +1,18 @@
 import asyncio
-import aiohttp
-import aiofiles
 import json
+
+import aiofiles
+import aiohttp
 
 urls = [
     "https://example.com",
     "https://httpbin.org/status/404",
-    "https://nonexistent.url"
+    "https://nonexistent.url",
 ]
 
 SEMAPHORE = asyncio.Semaphore(5)
 LOCK = asyncio.Lock()
+
 
 async def fetch_url(url, session, file):
     async with SEMAPHORE:
@@ -32,13 +34,17 @@ async def fetch_url(url, session, file):
             res["error"] = str(e)
 
         async with LOCK:
-            await file.write(json.dumps(res) + '\n')
+            await file.write(json.dumps(res) + "\n")
+
 
 async def fetch_urls(urls: list[str], file_path: str):
-    async with aiohttp.ClientSession() as session, \
-               aiofiles.open(file_path, "w") as file:
+    async with (
+        aiohttp.ClientSession() as session,
+        aiofiles.open(file_path, "w") as file,
+    ):
         tasks = [fetch_url(url, session, file) for url in urls]
         await asyncio.gather(*tasks)
 
-if __name__ == '__main__':
-    asyncio.run(fetch_urls(urls, './results.jsonl'))
+
+if __name__ == "__main__":
+    asyncio.run(fetch_urls(urls, "./results.jsonl"))
