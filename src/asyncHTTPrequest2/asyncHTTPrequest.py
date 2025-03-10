@@ -6,16 +6,19 @@ import aiohttp
 
 
 async def fetch_url(
-    url: str,
+    queue: asyncio.Queue,
     session: aiohttp.ClientSession,
     out_file,
     lock: asyncio.Lock,
-    semaphore: asyncio.Semaphore,
 ):
-    async with semaphore:
+    while True:
+        url = await queue.get()
+        if url is None:
+            break
+
         result = {"url": url}
         try:
-            async with session.get(url, timeout=10) as response:
+            async with session.get(url, timeout=60) as response:
                 if response.status == 200:
                     data = await response.json()
                     result["content"] = data
@@ -38,9 +41,11 @@ async def fetch_url(
         async with lock:
             await out_file.write(json.dumps(result) + "\n")
 
+        queue.task_done()
+
 
 async def fetch_urls(urls_file: str, result_file: str = "result.jsonl"):
-    semaphore = asyncio.Semaphore(5)
+    queue = asyncio.Queue()
     lock = asyncio.Lock()
 
     async with (
@@ -48,20 +53,20 @@ async def fetch_urls(urls_file: str, result_file: str = "result.jsonl"):
         aiofiles.open(result_file, "a") as out_file,
         aiofiles.open(urls_file, "r") as in_file,
     ):
-        tasks = []
         async for line in in_file:
             url = line.strip()
             if not url:
                 continue
+            await queue.put(url)
 
-            tasks.append(fetch_url(url, session, out_file, lock, semaphore))
+        workers = [asyncio.create_task(fetch_url(queue, session, out_file, lock)) for _ in range(5)]
 
-            if len(tasks) >= 20:
-                await asyncio.gather(*tasks, return_exceptions=True)
-                tasks.clear()
+        await queue.join()
 
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        for _ in range(5):
+            await queue.put(None)
+
+        await asyncio.gather(*workers)
 
 
 if __name__ == "__main__":
